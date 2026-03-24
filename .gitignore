@@ -1,0 +1,16 @@
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+.env
+*.db
+*.sqlite3
+.idea/
+.vscode/
+artifacts/
+data/gdelt_gkg_raw/*
+!data/gdelt_gkg_raw/.gitkeep
+data/historical_news/*
+!data/historical_news/.gitkeep
+frontend/node_modules/
+frontend/dist/
