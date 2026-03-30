@@ -22,7 +22,7 @@ from app.ingestion.gdelt_gkg_normalizer import normalize_gdelt_gkg_batch
 from app.ingestion.historical_news import run_historical_news_import
 from app.ingestion.pipeline import run_active_ingestion
 from app.models.inference import log_prediction, predict_for_ticker
-from app.models.train_baseline import train_and_save_baseline
+from app.models.train_baseline import load_experiment_matrix, run_experiment_matrix, train_and_save_baseline
 from app.nlp.seed_article_hashes import seed_article_hashes
 from app.nlp.seed_nlp_markers import seed_nlp_markers
 from app.nlp.pipeline import run_news_nlp
@@ -195,6 +195,21 @@ def model_history(limit: int = 20) -> dict:
         }
     finally:
         session.close()
+
+
+
+
+@router.post("/model/experiments/run")
+def model_experiments_run() -> dict:
+    try:
+        return run_experiment_matrix()
+    except Exception as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+
+@router.get("/model/experiments/status")
+def model_experiments_status() -> dict:
+    return load_experiment_matrix()
 
 
 @router.get("/predict")

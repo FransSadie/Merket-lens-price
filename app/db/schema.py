@@ -27,7 +27,6 @@ def _add_column_if_missing(table_name: str, column_name: str, definition: str) -
 def ensure_schema() -> None:
     Base.metadata.create_all(bind=engine)
 
-    # Lightweight runtime migration path for existing DBs.
     _add_column_if_missing("news_articles", "source_type", "VARCHAR(64) DEFAULT 'live_api'")
     _add_column_if_missing("news_articles", "external_id", "VARCHAR(255)")
     _add_column_if_missing("news_articles", "import_batch", "VARCHAR(255)")
@@ -39,28 +38,55 @@ def ensure_schema() -> None:
     _add_column_if_missing("news_signals", "source_weight", "DOUBLE PRECISION DEFAULT 1.0")
     _add_column_if_missing("news_signals", "event_tags", "VARCHAR(256)")
 
-    _add_column_if_missing("feature_snapshots", "source_weight_mean", "DOUBLE PRECISION")
-    _add_column_if_missing("feature_snapshots", "max_relevance", "DOUBLE PRECISION")
-    _add_column_if_missing("feature_snapshots", "weighted_news_count", "DOUBLE PRECISION")
-    _add_column_if_missing("feature_snapshots", "weighted_sentiment_sum", "DOUBLE PRECISION")
-    _add_column_if_missing("feature_snapshots", "positive_news_ratio", "DOUBLE PRECISION")
-    _add_column_if_missing("feature_snapshots", "negative_news_ratio", "DOUBLE PRECISION")
-    _add_column_if_missing("feature_snapshots", "source_diversity", "DOUBLE PRECISION")
-    _add_column_if_missing("feature_snapshots", "news_count_72h", "DOUBLE PRECISION")
-    _add_column_if_missing("feature_snapshots", "event_intensity", "DOUBLE PRECISION")
-    _add_column_if_missing("feature_snapshots", "news_count_change_24h", "DOUBLE PRECISION")
-    _add_column_if_missing("feature_snapshots", "sentiment_momentum_24h", "DOUBLE PRECISION")
-    _add_column_if_missing("feature_snapshots", "price_return_3d", "DOUBLE PRECISION")
-    _add_column_if_missing("feature_snapshots", "price_return_5d", "DOUBLE PRECISION")
-    _add_column_if_missing("feature_snapshots", "price_return_10d", "DOUBLE PRECISION")
-    _add_column_if_missing("feature_snapshots", "price_return_20d", "DOUBLE PRECISION")
-    _add_column_if_missing("feature_snapshots", "ma_gap_5d", "DOUBLE PRECISION")
-    _add_column_if_missing("feature_snapshots", "ma_gap_20d", "DOUBLE PRECISION")
-    _add_column_if_missing("feature_snapshots", "ma_crossover_5_20", "DOUBLE PRECISION")
-    _add_column_if_missing("feature_snapshots", "range_pct_1d", "DOUBLE PRECISION")
-    _add_column_if_missing("feature_snapshots", "atr_14_pct", "DOUBLE PRECISION")
-    _add_column_if_missing("feature_snapshots", "rolling_volatility_20d", "DOUBLE PRECISION")
-    _add_column_if_missing("feature_snapshots", "volatility_regime_60d", "DOUBLE PRECISION")
-    _add_column_if_missing("feature_snapshots", "volume_zscore_20d", "DOUBLE PRECISION")
-    _add_column_if_missing("feature_snapshots", "volume_change_5d", "DOUBLE PRECISION")
-
+    feature_columns = [
+        ("source_weight_mean", "DOUBLE PRECISION"),
+        ("max_relevance", "DOUBLE PRECISION"),
+        ("weighted_news_count", "DOUBLE PRECISION"),
+        ("weighted_sentiment_sum", "DOUBLE PRECISION"),
+        ("positive_news_ratio", "DOUBLE PRECISION"),
+        ("negative_news_ratio", "DOUBLE PRECISION"),
+        ("source_diversity", "DOUBLE PRECISION"),
+        ("news_count_72h", "DOUBLE PRECISION"),
+        ("event_intensity", "DOUBLE PRECISION"),
+        ("news_count_change_24h", "DOUBLE PRECISION"),
+        ("sentiment_momentum_24h", "DOUBLE PRECISION"),
+        ("price_return_2d", "DOUBLE PRECISION"),
+        ("price_return_3d", "DOUBLE PRECISION"),
+        ("price_return_5d", "DOUBLE PRECISION"),
+        ("price_return_10d", "DOUBLE PRECISION"),
+        ("price_return_15d", "DOUBLE PRECISION"),
+        ("price_return_20d", "DOUBLE PRECISION"),
+        ("ma_gap_5d", "DOUBLE PRECISION"),
+        ("ma_gap_20d", "DOUBLE PRECISION"),
+        ("ma_crossover_5_20", "DOUBLE PRECISION"),
+        ("ema_gap_12d", "DOUBLE PRECISION"),
+        ("ema_gap_26d", "DOUBLE PRECISION"),
+        ("ema_crossover_12_26", "DOUBLE PRECISION"),
+        ("range_pct_1d", "DOUBLE PRECISION"),
+        ("atr_14_pct", "DOUBLE PRECISION"),
+        ("rolling_volatility_20d", "DOUBLE PRECISION"),
+        ("downside_volatility_20d", "DOUBLE PRECISION"),
+        ("volatility_regime_60d", "DOUBLE PRECISION"),
+        ("volume_zscore_20d", "DOUBLE PRECISION"),
+        ("volume_change_5d", "DOUBLE PRECISION"),
+        ("volume_ratio_20d", "DOUBLE PRECISION"),
+        ("rsi_5", "DOUBLE PRECISION"),
+        ("rsi_14", "DOUBLE PRECISION"),
+        ("bollinger_z_20", "DOUBLE PRECISION"),
+        ("breakout_20d", "DOUBLE PRECISION"),
+        ("drawdown_20d", "DOUBLE PRECISION"),
+        ("trend_slope_10d", "DOUBLE PRECISION"),
+        ("trend_slope_20d", "DOUBLE PRECISION"),
+        ("up_day_ratio_10d", "DOUBLE PRECISION"),
+        ("rel_to_spy_return_5d", "DOUBLE PRECISION"),
+        ("rel_to_spy_return_20d", "DOUBLE PRECISION"),
+        ("rel_to_qqq_return_5d", "DOUBLE PRECISION"),
+        ("rel_to_sector_return_5d", "DOUBLE PRECISION"),
+        ("rel_to_sector_return_20d", "DOUBLE PRECISION"),
+        ("market_beta_20d", "DOUBLE PRECISION"),
+        ("market_corr_20d", "DOUBLE PRECISION"),
+        ("sector_corr_20d", "DOUBLE PRECISION"),
+        ("volume_vs_spy_ratio_20d", "DOUBLE PRECISION"),
+    ]
+    for column_name, definition in feature_columns:
+        _add_column_if_missing("feature_snapshots", column_name, definition)

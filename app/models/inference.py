@@ -4,6 +4,7 @@ from pathlib import Path
 
 import joblib
 import numpy as np
+import pandas as pd
 
 from app.core.config import get_settings
 from app.db.models import PredictionLog
@@ -51,7 +52,7 @@ def predict_for_ticker(ticker: str) -> dict:
             value = 0.0
         vector.append(float(value))
 
-    x = np.array([vector], dtype=float)
+    x = pd.DataFrame([vector], columns=feature_columns, dtype=float)
     proba = model.predict_proba(x)[0]
     classes = list(model.classes_)
     if 1 in classes:

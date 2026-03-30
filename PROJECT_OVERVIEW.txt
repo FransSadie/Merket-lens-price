@@ -1,5 +1,5 @@
 PROJECT OVERVIEW (LIVING DOCUMENT)
-Last updated: 2026-03-24 (price-only focus)
+Last updated: 2026-03-30 (price-only + richer LightGBM focus)
 
 ==================================================
 TECHNICAL TERMS
@@ -8,6 +8,8 @@ TECHNICAL TERMS
 1) Purpose
 - Build a price-based market prediction pipeline.
 - This repo focuses on price-only modeling.
+- The active training path uses LightGBM.
+- Logistic regression remains an internal benchmark only.
 - Older news-related code remains in the codebase for reference, but it is not part of the active workflow.
 
 2) Active Architecture
@@ -17,6 +19,7 @@ TECHNICAL TERMS
 - DB target: PostgreSQL (SQLite fallback supported)
 - Scheduling: APScheduler
 - Active data source: Yahoo Finance via yfinance
+- Active model family: LightGBM on tabular snapshot features
 
 3) Active Data Flow
 - Ingestion layer:
@@ -25,20 +28,27 @@ TECHNICAL TERMS
 - Feature layer:
   - rolling aggregation by ticker/window -> feature_snapshots
   - active emphasis is on pure price features
+  - feature set now includes richer structure signals:
+    multi-horizon returns, EMA gaps, RSI, Bollinger z-score, breakout, drawdown,
+    downside volatility, trend slopes, volume regime features, and new relative-strength features against SPY, QQQ, and sector ETFs
 - Label layer:
   - future return + binary direction target -> market_labels
 - Model layer:
   - join features + labels by ticker/date
   - time-ordered train/validation split
-  - scaled logistic regression baseline
+  - active model: LightGBM
+  - benchmark model: scaled logistic regression
+  - LightGBM candidate trial selection during training
   - walk-forward evaluation
   - threshold analysis for hold decisions
+  - top feature importance capture
   - every retrain stored in model_runs
 - Observability layer:
   - /data/status and /data/quality endpoints
   - prediction_logs table captures inference usage
 - UI layer:
   - one-click dashboard for ingestion, feature runs, training, prediction, and model history comparison
+  - model status emphasizes active model type, selected trial, logistic benchmark comparison, feature importance, threshold sweep, and experiment-matrix results
 
 4) Active Tables
 - market_prices
@@ -46,14 +56,18 @@ TECHNICAL TERMS
 - feature_snapshots
   - model input rows built from price behavior
   - includes:
-    price_close, return_1d, price_return_3d, price_return_5d, price_return_10d,
-    price_return_20d, ma_gap_5d, ma_gap_20d, ma_crossover_5_20,
-    range_pct_1d, atr_14_pct, rolling_volatility_20d, volatility_regime_60d,
-    volume_zscore_20d, volume_change_5d
+    price_close, return_1d, price_return_2d, price_return_3d, price_return_5d,
+    price_return_10d, price_return_15d, price_return_20d,
+    ma_gap_5d, ma_gap_20d, ma_crossover_5_20,
+    ema_gap_12d, ema_gap_26d, ema_crossover_12_26,
+    range_pct_1d, atr_14_pct, rolling_volatility_20d, downside_volatility_20d,
+    volatility_regime_60d, volume_zscore_20d, volume_change_5d, volume_ratio_20d,
+    rsi_5, rsi_14, bollinger_z_20, breakout_20d, drawdown_20d,
+    trend_slope_10d, trend_slope_20d, up_day_ratio_10d
 - market_labels
   - supervised targets from future returns
 - model_runs
-  - stored retrain history with metrics, feature set, horizon, threshold, and recommended hold threshold
+  - stored retrain history with metrics, feature set, horizon, threshold, recommended hold threshold, and full metrics_json
 - prediction_logs
   - stored prediction calls/results
 - ingestion_runs
@@ -65,17 +79,17 @@ TECHNICAL TERMS
 - app/ingestion/pipeline.py
   - active market ingestion flow
 - app/features/pipeline.py
-  - feature aggregation + label generation with multi-horizon price features
+  - feature aggregation + label generation with expanded price features
 - app/models/dataset.py
   - training dataframe builder + latest feature lookup
 - app/models/train_baseline.py
-  - active model training, metric generation, threshold analysis, model-run persistence
+  - active model training, candidate selection, metric generation, threshold analysis, logistic benchmark comparison, feature importance capture, and model-run persistence
 - app/models/inference.py
-  - prediction from latest active model
+  - prediction from latest active model artifact (model-agnostic loader)
 - app/api/routes.py
   - API endpoints for the active workflow and model history
 - frontend/src/App.jsx
-  - dashboard UI with model-run history comparison
+  - dashboard UI with model-run history comparison and active-model summary
 
 6) Active API Endpoints
 - GET /health
@@ -86,6 +100,8 @@ TECHNICAL TERMS
 - POST /model/train
 - GET /model/status
 - GET /model/history?limit=20
+- POST /model/experiments/run
+- GET /model/experiments/status
 - GET /predict?ticker=SPY
 - GET /prediction/logs?limit=100
 - GET /data/status
@@ -93,36 +109,30 @@ TECHNICAL TERMS
 - POST /run/full?train_model=true
 - GET /docs/text
 
-7) How to Run
-- Ingestion only:
-  - python -m app.ingestion.run_once
-- Features + labels:
-  - python -m app.features.run_once
-- Train model:
-  - python -m app.models.train_baseline
-- API server:
-  - python -m uvicorn app.main:app --reload
-- Frontend:
-  - cd frontend
-  - npm install
-  - npm run dev
-
-8) Current State
-- The repo now behaves as a price-only project by default.
-- Price-only training is the active model path.
+7) Current State
+- The repo behaves as a price-only project by default.
+- LightGBM is the active model path.
+- Logistic regression is retained only as a benchmark inside training metadata/history.
 - Retrains are persisted and surfaced in the UI.
-- The model now uses richer price features and configurable horizon/threshold settings.
+- The feature set is much richer than the earlier baseline.
+- LightGBM candidate-trial selection now happens automatically during training.
+- The latest run uses a 5-year, 20-ticker dataset and now shows LightGBM slightly beating the logistic benchmark on the main validation metrics.
 
-9) Archived / Optional Work
+8) Archived / Optional Work
 - News ingestion, NLP, historical news import, and GDELT normalization still exist in the repo.
 - They are not part of the active default workflow.
 - Treat them as parked experimental infrastructure, not current product scope.
 
+9) Transformer Status
+- Transformer work is intentionally deferred.
+- A transformer should not be bolted onto the current snapshot table design.
+- If pursued later, it should use a sequence-style dataset builder built around rolling ticker windows.
+
 10) Next Technical Milestones
-- tune the current price-only feature set
-- compare 1d/3d/5d targets and different return thresholds
-- add lightweight backtesting / paper-trade evaluation
-- keep price-only as the benchmark
+- use the built-in experiment matrix to compare target horizons and thresholds using the richer feature set, with the active default now set to 5d / 0.004
+- keep monitoring whether LightGBM can surpass the logistic benchmark
+- tighten constrained strategy summaries toward more realistic backtesting if needed
+- keep transformer work deferred until sequence data exists
 
 ==================================================
 VERY SIMPLE TERMS
@@ -130,17 +140,22 @@ VERY SIMPLE TERMS
 
 What this project does now:
 - it downloads stock price data
-- it turns that into training rows
-- it learns patterns from price action
-- it stores each retrain so you can compare models over time
+- it turns that into richer training rows
+- it trains several LightGBM variants and picks the best one
+- it also trains a logistic model in the background just to compare results
+- it stores every retrain so you can see if the new model is actually better
+- it shows the chosen tree settings, best feature drivers, and threshold sweep in the dashboard
 - it gives predictions in the dashboard
 
 What this project is not focused on now:
 - it is not mainly a news project anymore
+- it is not doing transformer work yet
 - news tools are still in the repo, but they are parked
 
-Simple next step:
-- keep improving the price features and compare retrains in the dashboard
+Simple current reality:
+- the system is better built and better instrumented now
+- the dashboard can now compare whole horizon/threshold grids without manual note-taking
+- and the latest broader-data run now has LightGBM narrowly beating logistic on the main validation numbers
 
 ==================================================
 UPDATE RULE
@@ -148,3 +163,4 @@ UPDATE RULE
 
 - Keep this file aligned with the active repo direction.
 - If the repo focus changes again, rewrite this document to match the active workflow, not historical experiments.
+
